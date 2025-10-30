@@ -1,4 +1,31 @@
-# Roleta Holagri (Jan/2026 → Jan/2027)
+# Roleta Holagri
+
+Deploy automático para GitHub Pages
+
+Este repositório contém um site estático (um único `index.html`) usado para sortear meses.
+
+URL prevista após o deploy (GitHub Pages):
+
+https://ElieltonBueno.github.io/roleta-holagri
+
+Observações:
+
+- O workflow de GitHub Actions (`.github/workflows/deploy-pages.yml`) publica a raiz do repositório no GitHub Pages automaticamente após push para `main`.
+- Aguarde alguns minutos após o push para o Pages ficar disponível; verifique em `Settings → Pages` ou em `Actions` no GitHub.
+- Se quiser domínio customizado, adicione um arquivo `CNAME` com seu domínio na raiz e me avise que eu adiciono.
+
+Como testar localmente:
+
+1. Abrir `index.html` no navegador (duplo clique), ou
+2. Servir localmente com Python: `python -m http.server 8080` e abrir `http://localhost:8080`.
+
+Se precisar, eu posso:
+
+- Adicionar `CNAME` para domínio customizado.
+- Criar versão `gh-pages` em vez do Pages diretamente.
+- Configurar Netlify/Vercel para deploy alternativo.
+
+— Gerado automaticamente durante o deploy.# Roleta Holagri (Jan/2026 → Jan/2027)
 
 Projeto estático (HTML único) para sortear meses entre jan/2026 e jan/2027.
 Não precisa de backend, roda em qualquer navegador.
