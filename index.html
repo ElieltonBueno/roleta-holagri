@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roleta Holagri — Sorteio de Meses (Jan/2026 a Jan/2027)</title>
+  <meta name="description" content="Roleta de sorteio para atribuir um mês entre janeiro/2026 e janeiro/2027 às empresas." />
+  <style>
+    :root{
+      --bg:#0f172a; /* slate-900 */
+      --panel:#111827; /* gray-900 */
+      --muted:#cbd5e1; /* slate-300 */
+      --text:#e5e7eb; /* gray-200 */
+      --accent:#22c55e; /* green-500 */
+      --accent-2:#60a5fa; /* blue-400 */
+      --danger:#ef4444; /* red-500 */
+      --card:#0b1220;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(120deg,#0b1220,#0f172a);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    .container{max-width:1100px;margin:24px auto;padding:0 16px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+    .title{font-size:clamp(20px,3vw,32px);font-weight:800;letter-spacing:.2px}
+    .subtitle{font-size:14px;opacity:.8}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .grid{display:grid;grid-template-columns: 1.1fr .9fr;gap:16px}
+    @media (max-width: 900px){.grid{grid-template-columns:1fr}}
+    .controls{display:grid;gap:12px}
+    label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    input[type="text"], select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:#0a1020;color:var(--text)}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    button{cursor:pointer;border:0;border-radius:12px;padding:12px 16px;font-weight:700}
+    .btn-primary{background:var(--accent);color:#06140c}
+    .btn-secondary{background:#1f2937;color:#e5e7eb}
+    .btn-danger{background:var(--danger);color:#fff}
+    .hint{font-size:12px;opacity:.75}
+    .tag{display:inline-flex;align-items:center;gap:8px;background:#0d1b2a;border:1px solid rgba(255,255,255,.08);padding:8px 10px;border-radius:999px}
+    .tag small{opacity:.8}
+    .list{max-height:220px;overflow:auto;display:grid;gap:8px}
+    .assignments{max-height:320px;overflow:auto}
+    table{width:100%;border-collapse:collapse}
+    th,td{text-align:left;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.07)}
+    th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .wheel-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+    canvas{width:100%;height:auto;display:block;max-width:520px;aspect-ratio:1/1}
+    .pointer{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:24px solid var(--accent-2);filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
+    .toast{position:fixed;inset:auto 16px 16px auto;background:#0a1020;color:#d1fae5;border:1px solid rgba(34,197,94,.35);padding:10px 12px;border-radius:10px;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);opacity:0;transform:translateY(8px);transition:.3s}
+    .toast.show{opacity:1;transform:translateY(0)}
+    .footer{opacity:.7;font-size:12px;margin-top:12px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <div class="title">Roleta Holagri</div>
+        <div class="subtitle">Sorteie um mês entre <strong>jan/2026</strong> e <strong>jan/2027</strong> para cada empresa.</div>
+      </div>
+      <div class="tag" title="Modo de sorteio">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+        <small id="modeLabel">Sem repetir meses</small>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Coluna esquerda: Roleta -->
+      <section class="card">
+        <div class="wheel-wrap">
+          <div class="pointer"></div>
+          <canvas id="wheel" width="800" height="800" aria-label="Roleta de meses"></canvas>
+        </div>
+        <div class="row" style="margin-top:12px; gap:12px; flex-wrap:wrap">
+          <button id="spinBtn" class="btn-primary">🎡 Girar roleta</button>
+          <button id="toggleModeBtn" class="btn-secondary" title="Alterna entre permitir ou não repetir meses">🔁 Alternar modo</button>
+          <button id="resetBtn" class="btn-danger" title="Limpa todos os sorteios e libera os meses novamente">🧹 Resetar</button>
+        </div>
+        <p class="hint">Dica: a seta marca o mês sorteado. No modo <em>sem repetir</em>, um mês já usado não voltará a ser escolhido.</p>
+      </section>
+
+      <!-- Coluna direita: Empresas e resultados -->
+      <section class="card">
+        <div class="controls">
+          <div>
+            <label for="company">Adicionar empresa à fila</label>
+            <div class="row">
+              <input id="company" type="text" placeholder="Ex.: Agro Alfa" />
+              <button id="addCompanyBtn" class="btn-secondary">➕ Adicionar</button>
+            </div>
+            <p class="hint">Opcional: cadastre as empresas para registrar automaticamente o resultado de cada giro.</p>
+          </div>
+
+          <div>
+            <label>Fila de empresas</label>
+            <div id="companyList" class="list"></div>
+          </div>
+
+          <div>
+            <label>Resultados</label>
+            <div class="assignments">
+              <table id="resultsTable">
+                <thead>
+                  <tr><th>#</th><th>Empresa</th><th>Mês sorteado</th><th>Data</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <button id="exportCsvBtn" class="btn-secondary">⬇️ Exportar CSV</button>
+              <button id="exportJsonBtn" class="btn-secondary">⬇️ Exportar JSON</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <p class="footer">Feito para Holagri — personalize cores/identidade no cabeçalho do código. Funciona offline em qualquer navegador moderno.</p>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ==========================
+    // Dados dos meses (13 fatias)
+    // ==========================
+    const months = [
+      { short: 'Jan/26', full: 'Janeiro/2026' },
+      { short: 'Fev/26', full: 'Fevereiro/2026' },
+      { short: 'Mar/26', full: 'Março/2026' },
+      { short: 'Abr/26', full: 'Abril/2026' },
+      { short: 'Mai/26', full: 'Maio/2026' },
+      { short: 'Jun/26', full: 'Junho/2026' },
+      { short: 'Jul/26', full: 'Julho/2026' },
+      { short: 'Ago/26', full: 'Agosto/2026' },
+      { short: 'Set/26', full: 'Setembro/2026' },
+      { short: 'Out/26', full: 'Outubro/2026' },
+      { short: 'Nov/26', full: 'Novembro/2026' },
+      { short: 'Dez/26', full: 'Dezembro/2026' },
+      { short: 'Jan/27', full: 'Janeiro/2027' },
+    ];
+
+    // Paleta alternada para as fatias
+    const sliceColors = [
+      '#60a5fa', '#34d399', '#f59e0b', '#f472b6', '#a78bfa', '#22d3ee', '#fb7185'
+    ];
+
+    // Estado
+    let allowRepeats = false; // false = sem repetir meses
+    let usedIndices = new Set();
+    let currentRotation = 0; // em radianos
+    let spinning = false;
+
+    // Empresas e resultados
+    const companyQueue = [];
+    const assignments = []; // {company, index, monthFull, at}
+
+    // Elementos
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    const spinBtn = document.getElementById('spinBtn');
+    const toggleModeBtn = document.getElementById('toggleModeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const companyInput = document.getElementById('company');
+    const addCompanyBtn = document.getElementById('addCompanyBtn');
+    const companyList = document.getElementById('companyList');
+    const resultsTableBody = document.querySelector('#resultsTable tbody');
+    const exportCsvBtn = document.getElementById('exportCsvBtn');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const toastEl = document.getElementById('toast');
+    const modeLabel = document.getElementById('modeLabel');
+
+    const TAU = Math.PI * 2;
+    const SEG = months.length; // 13
+    const SEG_ANGLE = TAU / SEG;
+    const START_ANGLE = -Math.PI / 2; // 12h (pointer)
+
+    function showToast(msg){
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      setTimeout(()=>toastEl.classList.remove('show'), 2200);
+    }
+
+    function drawWheel() {
+      const { width, height } = canvas;
+      const cx = width/2, cy = height/2;
+      const rOuter = Math.min(width, height) * 0.48;
+      const rInner = rOuter * 0.22; // círculo central
+
+      const prevAlpha = ctx.globalAlpha;
+      ctx.clearRect(0,0,width,height);
+
+      // Desenhar fatias
+      for(let i=0;i<SEG;i++){
+        const start = START_ANGLE + i*SEG_ANGLE + currentRotation;
+        const end = start + SEG_ANGLE;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, rOuter, start, end);
+        ctx.closePath();
+        ctx.fillStyle = sliceColors[i % sliceColors.length];
+        ctx.globalAlpha = usedIndices.has(i) && !allowRepeats ? 0.55 : 1;
+        ctx.fill();
+
+        // separador
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, rOuter, start, end);
+        ctx.stroke();
+        ctx.restore();
+
+        // Texto
+        const mid = (start + end)/2;
+        const tx = cx + Math.cos(mid) * (rOuter*0.72);
+        const ty = cy + Math.sin(mid) * (rOuter*0.72);
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.rotate(mid + Math.PI/2);
+        ctx.fillStyle = '#0b1220';
+        ctx.font = `${Math.floor(rOuter*0.09)}px ui-sans-serif, system-ui, -apple-system`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(months[i].short, 0, 0);
+        ctx.restore();
+      }
+
+      // Reset alpha
+      ctx.globalAlpha = prevAlpha;
+
+      // Círculo central
+      ctx.beginPath();
+      ctx.arc(cx, cy, rInner, 0, TAU);
+      ctx.fillStyle = '#0a1020';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.2)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Título no centro
+      ctx.fillStyle = '#e5e7eb';
+      ctx.font = `${Math.floor(rOuter*0.09)}px ui-sans-serif, system-ui, -apple-system`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('HO L A G R I', width/2, height/2);
+    }
+
+    function pickIndex(){
+      // Seleciona um índice válido conforme o modo
+      if (!allowRepeats && usedIndices.size >= SEG) return null;
+      const available = allowRepeats ? [...Array(SEG).keys()] : [...Array(SEG).keys()].filter(i=>!usedIndices.has(i));
+      const r = Math.floor(Math.random()*available.length);
+      return available[r];
+    }
+
+    function spinToIndex(index){
+      // Calcula rotação final para que o meio da fatia "index" pare na seta do topo
+      const midAngle = START_ANGLE + index*SEG_ANGLE + SEG_ANGLE/2; // posição da fatia sem rotação
+      // Queremos que -currentRotation ≡ midAngle (mod TAU), então rotation_final = -midAngle + k*TAU
+      const spins = 5 + Math.floor(Math.random()*3); // 5..7 voltas
+      const targetRotation = -midAngle + spins*TAU;
+      animateRotation(currentRotation, targetRotation, 3200 + Math.random()*1200, ()=>{
+        // Ao terminar, checar índice efetivo (robustez) e registrar
+        const effIndex = getIndexAtPointer();
+        finalizeResult(effIndex);
+      });
+    }
+
+    function getIndexAtPointer(){
+      // Ângulo na seta do topo é o ângulo "fixo" START_ANGLE sem rotação; a fatia visada é aquela cujo intervalo contém START_ANGLE - currentRotation
+      let a = START_ANGLE - currentRotation; // espaço do disco
+      a = (a % TAU + TAU) % TAU; // normaliza [0,2pi)
+      // Encontrar i tal que START_ANGLE + i*SEG_ANGLE <= a < START_ANGLE + (i+1)*SEG_ANGLE (mod TAU)
+      let rel = (a - START_ANGLE + TAU) % TAU;
+      let i = Math.floor(rel / SEG_ANGLE);
+      return (i % SEG + SEG) % SEG;
+    }
+
+    function animateRotation(from, to, duration, onDone){
+      if (spinning) return;
+      spinning = true;
+      const start = performance.now();
+      function frame(now){
+        const t = Math.min(1, (now - start)/duration);
+        // Ease-out cubic
+        const e = 1 - Math.pow(1 - t, 3);
+        currentRotation = from + (to - from) * e;
+        drawWheel();
+        if (t < 1) requestAnimationFrame(frame); else { spinning = false; onDone && onDone(); }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function finalizeResult(index){
+      if (!allowRepeats) usedIndices.add(index);
+      const monthFull = months[index].full;
+      const company = companyQueue.length ? companyQueue.shift() : '—';
+      const at = new Date().toLocaleString('pt-BR');
+      assignments.push({ company, index, monthFull, at });
+      renderCompanyList();
+      appendResultRow(assignments.length, company, monthFull, at);
+      showToast(`Mês sorteado: ${monthFull}${company!== '—' ? ' • ' + company : ''}`);
+    }
+
+    function renderCompanyList(){
+      companyList.innerHTML = '';
+      if (!companyQueue.length){
+        const p = document.createElement('p');
+        p.className = 'hint';
+        p.textContent = 'Sem empresas na fila.';
+        companyList.appendChild(p);
+        return;
+      }
+      companyQueue.forEach((name, idx)=>{
+        const row = document.createElement('div');
+        row.style.display='flex';
+        row.style.alignItems='center';
+        row.style.justifyContent='space-between';
+        row.style.gap='8px';
+        row.style.padding='8px 10px';
+        row.style.border='1px solid rgba(255,255,255,.08)';
+        row.style.borderRadius='10px';
+        row.style.background='#0a1020';
+        row.innerHTML = `<div><strong>${idx+1}.</strong> ${name}</div>`;
+        const rm = document.createElement('button');
+        rm.textContent = '✖';
+        rm.className = 'btn-danger';
+        rm.style.padding='6px 10px';
+        rm.onclick = ()=>{ companyQueue.splice(idx,1); renderCompanyList(); };
+        row.appendChild(rm);
+        companyList.appendChild(row);
+      });
+    }
+
+    function appendResultRow(n, company, monthFull, at){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${n}</td><td>${company}</td><td>${monthFull}</td><td>${at}</td>`;
+      resultsTableBody.appendChild(tr);
+    }
+
+    function rebuildTable(){
+      resultsTableBody.innerHTML = '';
+      assignments.forEach((a, i)=>appendResultRow(i+1, a.company, a.monthFull, a.at));
+    }
+
+    // Exportações
+    function exportCSV(){
+      const header = ['ordem','empresa','mes','data'];
+      const rows = assignments.map((a,i)=>[i+1, a.company, a.monthFull, a.at]);
+      const csv = [header, ...rows].map(r=>r.map(f=>`"${String(f).replace(/"/g,'""')}"`).join(',')).join('\n');
+      downloadFile('sorteios-holagri.csv', 'text/csv;charset=utf-8', csv);
+    }
+    function exportJSON(){
+      const blob = JSON.stringify(assignments, null, 2);
+      downloadFile('sorteios-holagri.json', 'application/json;charset=utf-8', blob);
+    }
+    function downloadFile(filename, mime, content){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([content], {type:mime}));
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // Handlers
+    spinBtn.onclick = ()=>{
+      if (spinning) return;
+      const index = pickIndex();
+      if (index === null){ showToast('Todos os 13 meses já foram sorteados. Clique em Resetar para recomeçar.'); return; }
+      spinToIndex(index);
+    };
+
+    toggleModeBtn.onclick = ()=>{
+      allowRepeats = !allowRepeats;
+      modeLabel.textContent = allowRepeats ? 'Com repetição de meses' : 'Sem repetir meses';
+      drawWheel();
+      showToast(allowRepeats ? 'Agora pode repetir meses.' : 'Agora os meses não repetem.');
+    };
+
+    resetBtn.onclick = ()=>{
+      usedIndices.clear();
+      assignments.length = 0;
+      rebuildTable();
+      drawWheel();
+      showToast('Roleta e resultados resetados.');
+    };
+
+    addCompanyBtn.onclick = ()=>{
+      const name = companyInput.value.trim();
+      if (!name){ showToast('Digite o nome da empresa.'); return; }
+      companyQueue.push(name);
+      companyInput.value = '';
+      renderCompanyList();
+      showToast('Empresa adicionada à fila.');
+    };
+
+    exportCsvBtn.onclick = exportCSV;
+    exportJsonBtn.onclick = exportJSON;
+
+    // Inicialização
+    drawWheel();
+    renderCompanyList();
+
+    // Acessibilidade: Enter adiciona empresa
+    companyInput.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter') addCompanyBtn.click();
+    });
+  </script>
+</body>
+</html>
